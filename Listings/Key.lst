@@ -1,0 +1,231 @@
+C51 COMPILER V9.54   KEY                                                                   07/25/2025 11:09:13 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE KEY
+OBJECT MODULE PLACED IN .\Objects\Key.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE Key.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\Key.l
+                    -st) TABS(2) OBJECT(.\Objects\Key.obj)
+
+line level    source
+
+*** WARNING C500 IN LINE 1 OF Key.c: LICENSE ERROR (R207(2): REGISTRY READ ERROR)
+
+   1          #include <REGX52.H>
+   2          #include "Key.h"
+   3          #define   KEY_PRESSED     1
+   4          #define   KEY_UNPRESSED   0
+   5          
+   6          #define   KEY_TIME_DOUBLE 200   //双击阈值
+   7          #define   KEY_TIME_LONG   2000  //长按阈值
+   8          #define   KEY_TIME_REPEAT 100 //重复阈值
+   9          
+  10          uint8_t Key_Flag[KEY_COUNT];
+  11          
+  12          uint8_t Key_GetState(uint8_t n)//检测按键实际状态，在Tick函数里执行进行消抖
+  13          {
+  14   1        if(n==KEY_1)
+  15   1        {
+  16   2          if(P3_1==0)
+  17   2          {
+  18   3            return KEY_PRESSED;
+  19   3          }
+  20   2          return KEY_UNPRESSED; 
+  21   2        }
+  22   1        if(n==KEY_2)
+  23   1        {
+  24   2          if(P3_0==0)
+  25   2          {
+  26   3            return KEY_PRESSED;
+  27   3          }
+  28   2          return KEY_UNPRESSED; 
+  29   2        }
+  30   1        if(n==KEY_3)
+  31   1        {
+  32   2          if(P3_2==0)
+  33   2          {
+  34   3            return KEY_PRESSED;
+  35   3          }
+  36   2          return KEY_UNPRESSED; 
+  37   2        }
+  38   1        if(n==KEY_4)
+  39   1        {
+  40   2          if(P3_3==0)
+  41   2          {
+  42   3            return KEY_PRESSED;
+  43   3          }
+  44   2          return KEY_UNPRESSED; 
+  45   2        }
+  46   1      }
+  47          
+  48          
+  49          void key_tick()
+  50          { 
+  51   1        static unsigned char count1,i;//遍历四个按键检测;
+  52   1        static unsigned char CurrState[KEY_COUNT]; 
+  53   1        static unsigned char PrevState[KEY_COUNT],S[KEY_COUNT],Time[KEY_COUNT];
+C51 COMPILER V9.54   KEY                                                                   07/25/2025 11:09:13 PAGE 2   
+
+  54   1          
+  55   1        //函数每次都从头开始执行，用静态变量保存上一次的状态，让函数下一次从上�
+             -��次结束的地方开始执行
+  56   1        //通过静态变量跟踪状态 (s变量)，实现了类似 "断点续传" 的效果。
+  57   1        for(i=0;i<KEY_COUNT;i++)
+  58   1        { 
+  59   2          
+  60   2          if(Time[i]>0)
+  61   2          {
+  62   3            Time[i]--;
+  63   3          }
+  64   2        }
+  65   1          count1++;
+  66   1        if (count1 >= 20)
+  67   1        {
+  68   2          
+  69   2          count1 = 0;
+  70   2          P2_3=~P2_3;
+  71   2          for (i = 0; i < KEY_COUNT; i ++)
+  72   2          {
+  73   3            PrevState[i] = CurrState[i];
+  74   3            CurrState[i] = Key_GetState(i);
+  75   3            
+  76   3            if (CurrState[i] == KEY_PRESSED)
+  77   3            {
+  78   4              Key_Flag[i] |= KEY_HOLD;
+  79   4            }
+  80   3            else
+  81   3            {
+  82   4              Key_Flag[i] &= ~KEY_HOLD;
+  83   4            }
+  84   3            
+  85   3            if (CurrState[i] == KEY_PRESSED && PrevState[i] == KEY_UNPRESSED)
+  86   3            {
+  87   4              Key_Flag[i] |= KEY_DOWN;
+  88   4            }
+  89   3            
+  90   3            if (CurrState[i] == KEY_UNPRESSED && PrevState[i] == KEY_PRESSED)
+  91   3            {
+  92   4              Key_Flag[i] |= KEY_UP;
+  93   4            }
+  94   3            
+  95   3            if (S[i] == 0)
+  96   3            {
+  97   4              if (CurrState[i] == KEY_PRESSED)
+  98   4              {
+  99   5                Time[i] = KEY_TIME_LONG;
+ 100   5                S[i] = 1;
+ 101   5              }
+ 102   4            }
+ 103   3            else if (S[i] == 1)
+ 104   3            {
+ 105   4              if (CurrState[i] == KEY_UNPRESSED)
+ 106   4              {
+ 107   5                Time[i] = KEY_TIME_DOUBLE;
+ 108   5                S[i] = 2;
+ 109   5              }
+ 110   4              else if (Time[i] == 0)
+ 111   4              {
+ 112   5                Time[i] = KEY_TIME_REPEAT;
+ 113   5                Key_Flag[i] |= KEY_LONG;
+ 114   5                S[i] = 4;
+C51 COMPILER V9.54   KEY                                                                   07/25/2025 11:09:13 PAGE 3   
+
+ 115   5              }
+ 116   4            }
+ 117   3            else if (S[i] == 2)
+ 118   3            {
+ 119   4              if (CurrState[i] == KEY_PRESSED)
+ 120   4              {
+ 121   5                Key_Flag[i] |= KEY_DOUBLE;
+ 122   5                S[i] = 3;
+ 123   5              }
+ 124   4              else if (Time[i] == 0)
+ 125   4              {
+ 126   5                Key_Flag[i] |= KEY_SINGLE;
+ 127   5                S[i] = 0;
+ 128   5              }
+ 129   4            }
+ 130   3            else if (S[i] == 3)
+ 131   3            {
+ 132   4              if (CurrState[i] == KEY_UNPRESSED)
+ 133   4              {
+ 134   5                S[i] = 0;
+ 135   5              }
+ 136   4            }
+ 137   3            else if (S[i] == 4)
+ 138   3            {
+ 139   4              if (CurrState[i] == KEY_UNPRESSED)
+ 140   4              {
+ 141   5                S[i] = 0;
+ 142   5              }
+ 143   4              else if (Time[i] == 0)
+ 144   4              {
+ 145   5                Time[i] = KEY_TIME_REPEAT;
+ 146   5                Key_Flag[i] |= KEY_REPEAT;
+ 147   5                S[i] = 4;
+ 148   5              }
+ 149   4            }
+ 150   3          }
+ 151   2        }
+ 152   1      }
+ 153          //  a  |= 位掩码，将对应位置1  ： a &=~位掩码，将对应位置0
+ 154          uint8_t Key_Check(uint8_t n ,uint8_t  Flag) //Flag是位掩码，检测KeyFlag某一位的值，用于检�
+             -�对应动作是否实现
+ 155          {                                
+ 156   1        if(Key_Flag[n]  & Flag) //变量与上位掩码，标志位为1时，计算结果为位掩码本身,非0�
+             -�进入if语句
+ 157   1        {
+ 158   2          if(Flag!=KEY_HOLD)
+ 159   2            {                           //如果不是keyhold，则读后把对应某一位清零
+ 160   3            Key_Flag[n] &=  ~Flag;
+ 161   3            }   
+ 162   2          return 1;
+ 163   2        }
+ 164   1        return 0;
+ 165   1      }
+ 166          
+ 167          
+ 168          
+ 169          
+ 170          
+ 171          
+ 172          
+ 173          
+ 174          
+C51 COMPILER V9.54   KEY                                                                   07/25/2025 11:09:13 PAGE 4   
+
+ 175          
+ 176          
+ 177          
+ 178          
+ 179          
+ 180          
+ 181          
+ 182          
+ 183          
+ 184          
+ 185          
+ 186          
+ 187          
+ 188          
+ 189          
+ 190          
+ 191          
+ 192          
+ 193          
+ 194          
+ 195          
+*** WARNING C291 IN LINE 46 OF Key.c: not every exit path returns a value
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    449    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     22    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  2 WARNING(S),  0 ERROR(S)
